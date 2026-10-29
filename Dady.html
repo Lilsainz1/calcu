@@ -1,0 +1,740 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Calculadora Familiar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+<style>
+  /* Layout: una calculadora centrada. Arriba tres botones (historial, estilo, compacto), luego el visor,
+     una fila de memoria y potencia, y el teclado de 4 columnas. El historial se abre sobre el teclado. */
+  :root {
+    --bg: #e6ece9;
+    --surface: #f7f9f8;
+    --line: #cdd7d3;
+    --fg: #14201c;
+    --muted: #5a6a65;
+    --k-num-bg: #ffffff;
+    --k-num-fg: #14201c;
+    --k-fn-bg: #dde6e2;
+    --k-fn-fg: #14201c;
+    --k-op-bg: #cde8e0;
+    --k-op-fg: #0b4a3d;
+    --k-op-on-bg: #0b4a3d;
+    --k-op-on-fg: #cde8e0;
+    --k-eq-bg: #0f7a64;
+    --k-eq-fg: #ffffff;
+    --link: #0f7a64;
+    --focus: #0f7a64;
+    --err: #b3261e;
+    --press: brightness(0.92);
+    --k-ring: 0 0 0 1px var(--line) inset;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1311;
+      --surface: #141d1b;
+      --line: #243431;
+      --fg: #e8f1ee;
+      --muted: #93a8a2;
+      --k-num-bg: #1d2a28;
+      --k-num-fg: #e8f1ee;
+      --k-fn-bg: #2a3a38;
+      --k-fn-fg: #e8f1ee;
+      --k-op-bg: #1f3d37;
+      --k-op-fg: #8fe0c8;
+      --k-op-on-bg: #8fe0c8;
+      --k-op-on-fg: #1f3d37;
+      --k-eq-bg: #2fb89a;
+      --k-eq-fg: #06201a;
+      --link: #5fd3b8;
+      --focus: #2fb89a;
+      --err: #ff8a80;
+      --press: brightness(1.2);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1311;
+    --surface: #141d1b;
+    --line: #243431;
+    --fg: #e8f1ee;
+    --muted: #93a8a2;
+    --k-num-bg: #1d2a28;
+    --k-num-fg: #e8f1ee;
+    --k-fn-bg: #2a3a38;
+    --k-fn-fg: #e8f1ee;
+    --k-op-bg: #1f3d37;
+    --k-op-fg: #8fe0c8;
+    --k-op-on-bg: #8fe0c8;
+    --k-op-on-fg: #1f3d37;
+    --k-eq-bg: #2fb89a;
+    --k-eq-fg: #06201a;
+    --link: #5fd3b8;
+    --focus: #2fb89a;
+    --err: #ff8a80;
+    --press: brightness(1.2);
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* Medidas y tipografía propias de cada estilo. Android es la base. */
+  .calc {
+    --font-ui: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --card-radius: 24px;
+    --k-radius: 18px;
+    --m-radius: 12px;
+    --k-h: 3.75rem;
+    --m-h: 2.25rem;
+    --gap: 10px;
+    --kf: 1.35rem;
+    --kw: 500;
+    --vs: 2.9rem;
+    --vw: 400;
+    width: 100%;
+    max-width: 22rem;
+    font-family: var(--font-ui);
+    background: var(--surface);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Estilo iPhone: negro, teclas redondas, naranja. Siempre oscuro, como la calculadora del iPhone. */
+  .calc[data-style="ios"] {
+    --font-ui: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, "Roboto", sans-serif;
+    --surface: #000000;
+    --line: #2c2c2e;
+    --fg: #ffffff;
+    --muted: #8e8e93;
+    --k-num-bg: #333333;
+    --k-num-fg: #ffffff;
+    --k-fn-bg: #a5a5a5;
+    --k-fn-fg: #000000;
+    --k-op-bg: #ff9f0a;
+    --k-op-fg: #ffffff;
+    --k-op-on-bg: #ffffff;
+    --k-op-on-fg: #ff9f0a;
+    --k-eq-bg: #ff9f0a;
+    --k-eq-fg: #ffffff;
+    --link: #ff9f0a;
+    --focus: #ff9f0a;
+    --err: #ff453a;
+    --press: brightness(1.4);
+    --k-ring: 0 0 0 0 transparent;
+    --card-radius: 34px;
+    --k-radius: 999px;
+    --m-radius: 999px;
+    --kf: 1.9rem;
+    --kw: 400;
+    --vs: 4rem;
+    --vw: 300;
+  }
+
+  /* Modo compacto: teclas más bajas y menos espacio, para pantallas chicas. Va al final para ganarle al estilo. */
+  .calc.compact {
+    --k-h: 3rem;
+    --m-h: 2rem;
+    --gap: 8px;
+    --kf: 1.3rem;
+    --vs: 2.3rem;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--k-num-bg);
+    color: var(--k-num-fg);
+    box-shadow: var(--k-ring);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .chip[aria-pressed="true"] { background: var(--k-op-bg); color: var(--k-op-fg); }
+
+  .screen { min-width: 0; padding: 4px 4px 0; display: flex; flex-direction: column; gap: 2px; }
+  .screen-top { display: flex; align-items: center; gap: 8px; min-height: 1.5rem; }
+  .mem-flag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 6px;
+    background: var(--k-op-bg);
+    color: var(--k-op-fg);
+  }
+  .expr {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    font-size: 0.9rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .expr::-webkit-scrollbar { display: none; }
+  .expr.is-err { color: var(--err); font-weight: 500; white-space: normal; }
+  .value {
+    text-align: right;
+    font-size: var(--vs);
+    font-weight: var(--vw);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .value::-webkit-scrollbar { display: none; }
+  .value.m { font-size: calc(var(--vs) * 0.8); }
+  .value.s { font-size: calc(var(--vs) * 0.65); }
+  .value.xs { font-size: calc(var(--vs) * 0.52); }
+
+  .pad { position: relative; }
+  .pad-main { display: flex; flex-direction: column; gap: var(--gap); }
+  .extras { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); }
+  .keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+
+  .k {
+    font-family: inherit;
+    font-size: var(--kf);
+    font-weight: var(--kw);
+    height: var(--k-h);
+    padding: 0;
+    border: 0;
+    border-radius: var(--k-radius);
+    background: var(--k-num-bg);
+    color: var(--k-num-fg);
+    box-shadow: var(--k-ring);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 80ms ease, filter 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .k:active { filter: var(--press); transform: scale(0.97); }
+  .k.fn { background: var(--k-fn-bg); color: var(--k-fn-fg); }
+  .k.op { background: var(--k-op-bg); color: var(--k-op-fg); }
+  .k.op.is-active { background: var(--k-op-on-bg); color: var(--k-op-on-fg); box-shadow: none; }
+  .k.eq { background: var(--k-eq-bg); color: var(--k-eq-fg); box-shadow: none; }
+  .k.mem { height: var(--m-h); font-size: 0.85rem; font-weight: 700; border-radius: var(--m-radius); }
+  .k sup { font-size: 0.65em; vertical-align: baseline; position: relative; top: -0.5em; }
+
+  /* En el estilo iPhone las teclas son círculos; en compacto vuelven a ser píldoras. */
+  .calc[data-style="ios"] .keys .k { aspect-ratio: 1 / 1; height: auto; }
+  .calc.compact .keys .k { aspect-ratio: auto; height: var(--k-h); }
+
+  .chip:focus-visible, .k:focus-visible, .h-item:focus-visible, .link:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .history {
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+  .history-head { display: flex; justify-content: space-between; align-items: center; }
+  .history h2 { margin: 0; font-size: 0.95rem; font-weight: 500; }
+  .link {
+    background: none;
+    border: 0;
+    padding: 6px 4px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--link);
+    cursor: pointer;
+  }
+  .history-empty { margin: 8px 4px; font-size: 0.9rem; line-height: 1.5; color: var(--muted); }
+  .history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .h-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 10px 4px;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    font-family: inherit;
+    color: var(--fg);
+    text-align: right;
+    cursor: pointer;
+  }
+  .h-expr { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+  .h-res { font-size: 1.35rem; font-weight: 500; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+  .hint { margin: 0; font-size: 0.75rem; line-height: 1.5; color: var(--muted); }
+  .calc.compact .hint { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .k { transition: none; }
+  }
+</style>
+
+<main class="calc" id="calc" data-style="android" aria-label="Calculadora">
+  <h1 class="sr-only">Calculadora Familiar</h1>
+
+  <div class="bar">
+    <button type="button" class="chip" id="btnHist" aria-expanded="false" aria-controls="history">Historial</button>
+    <button type="button" class="chip" id="btnStyle">Estilo Android</button>
+    <button type="button" class="chip" id="btnCompact" aria-pressed="false">Compacto</button>
+  </div>
+
+  <div class="screen" aria-live="polite">
+    <div class="screen-top">
+      <span class="mem-flag" id="memFlag" hidden>M</span>
+      <div class="expr" id="expr">&nbsp;</div>
+    </div>
+    <div class="value" id="value">0</div>
+  </div>
+
+  <div class="pad" id="pad">
+    <div class="pad-main" id="padMain">
+      <div class="extras">
+        <button type="button" class="k mem" data-k="MC" aria-label="Borrar memoria">MC</button>
+        <button type="button" class="k mem" data-k="MR" aria-label="Recuperar memoria">MR</button>
+        <button type="button" class="k mem" data-k="M+" aria-label="Sumar a la memoria">M+</button>
+        <button type="button" class="k mem" data-k="M-" aria-label="Restar de la memoria">M&minus;</button>
+        <button type="button" class="k mem op" data-k="^" aria-label="Potencia">x<sup>y</sup></button>
+      </div>
+
+      <div class="keys">
+        <button type="button" class="k fn" data-k="C" aria-label="Borrar todo">C</button>
+        <button type="button" class="k fn" data-k="B" aria-label="Borrar último dígito">&#9003;</button>
+        <button type="button" class="k fn" data-k="%" aria-label="Porcentaje">%</button>
+        <button type="button" class="k op" data-k="/" aria-label="Dividir">&divide;</button>
+
+        <button type="button" class="k" data-k="7">7</button>
+        <button type="button" class="k" data-k="8">8</button>
+        <button type="button" class="k" data-k="9">9</button>
+        <button type="button" class="k op" data-k="*" aria-label="Multiplicar">&times;</button>
+
+        <button type="button" class="k" data-k="4">4</button>
+        <button type="button" class="k" data-k="5">5</button>
+        <button type="button" class="k" data-k="6">6</button>
+        <button type="button" class="k op" data-k="-" aria-label="Restar">&minus;</button>
+
+        <button type="button" class="k" data-k="1">1</button>
+        <button type="button" class="k" data-k="2">2</button>
+        <button type="button" class="k" data-k="3">3</button>
+        <button type="button" class="k op" data-k="+" aria-label="Sumar">+</button>
+
+        <button type="button" class="k fn" data-k="N" aria-label="Cambiar signo">+/&minus;</button>
+        <button type="button" class="k" data-k="0">0</button>
+        <button type="button" class="k" data-k="." aria-label="Coma decimal">,</button>
+        <button type="button" class="k eq" data-k="=" aria-label="Igual">=</button>
+      </div>
+    </div>
+
+    <section class="history" id="history" aria-label="Historial de cálculos" hidden>
+      <div class="history-head">
+        <h2>Historial</h2>
+        <button type="button" class="link" id="btnClearHist">Borrar todo</button>
+      </div>
+      <p class="history-empty" id="histEmpty">Todavía no hay cálculos. Cuando termines uno con =, queda guardado acá y lo podés volver a usar.</p>
+      <ol class="history-list" id="histList"></ol>
+    </section>
+  </div>
+
+  <p class="hint" id="hint">Los decimales se calculan exactos: 0,1 + 0,2 da 0,3. Con teclado: números, coma, + &minus; * / ^ %, Enter para el resultado y Esc para borrar.</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.4.3/decimal.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var calcEl = document.getElementById("calc");
+  var exprEl = document.getElementById("expr");
+  var valueEl = document.getElementById("value");
+  var memFlag = document.getElementById("memFlag");
+  var pad = document.getElementById("pad");
+  var padMain = document.getElementById("padMain");
+  var historyEl = document.getElementById("history");
+  var histList = document.getElementById("histList");
+  var histEmpty = document.getElementById("histEmpty");
+  var btnHist = document.getElementById("btnHist");
+  var btnStyle = document.getElementById("btnStyle");
+  var btnCompact = document.getElementById("btnCompact");
+  var btnClearHist = document.getElementById("btnClearHist");
+
+  if (typeof Decimal === "undefined") {
+    exprEl.textContent = "No se pudo cargar el motor de cálculo. Actualizá la página.";
+    exprEl.className = "expr is-err";
+    return;
+  }
+  // 40 cifras de trabajo; se muestran 15. Los números grandes pasan a notación científica desde 1e15.
+  Decimal.set({ precision: 40, toExpNeg: -9, toExpPos: 15 });
+  function D(s) { return new Decimal(s); }
+
+  var SYMBOLS = { "+": "+", "-": "−", "*": "×", "/": "÷", "^": "^" };
+  var MAX_DIGITS = 15;
+  var SHOW_DIGITS = 15;
+  var MAX_HISTORY = 50;
+  var STORE_KEY = "calculadora-familiar.v2";
+
+  function isOp(k) { return Object.prototype.hasOwnProperty.call(SYMBOLS, k); }
+  function isNum(s) { return typeof s === "string" && s.length < 80 && /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(s); }
+
+  var state;
+  var mem = D(0);
+  var memSet = false;
+  var entries = [];
+  var styleName = "android";
+  var compact = false;
+  var historyOpen = false;
+
+  function reset() {
+    state = { cur: "0", prev: null, op: null, fresh: false, overwrite: false, justEq: false, expr: "", err: "" };
+  }
+  reset();
+
+  function fail(msg) { reset(); state.err = msg; }
+
+  /* ---------- Guardado en este dispositivo ---------- */
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      return raw ? (JSON.parse(raw) || {}) : {};
+    } catch (e) { return {}; }
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        hist: entries,
+        mem: memSet ? mem.toString() : null,
+        style: styleName,
+        compact: compact
+      }));
+    } catch (e) { /* sin guardado: la calculadora sigue funcionando */ }
+  }
+  function cleanEntries(list) {
+    var out = [];
+    if (!Array.isArray(list)) return out;
+    for (var i = 0; i < list.length && out.length < MAX_HISTORY; i++) {
+      var h = list[i];
+      if (h && isNum(h.a) && isNum(h.b) && isNum(h.r) && isOp(h.o)) out.push({ a: h.a, o: h.o, b: h.b, r: h.r });
+    }
+    return out;
+  }
+
+  /* ---------- Formato argentino: puntos en los miles, coma en los decimales ---------- */
+  function digitCount(s) { return s.replace(/[-.]/g, "").length; }
+  function pretty(s) {
+    if (/e/i.test(s) || digitCount(s) > SHOW_DIGITS) {
+      try { s = D(s).toSignificantDigits(SHOW_DIGITS).toString(); } catch (e) { /* se muestra tal cual */ }
+    }
+    if (/e/i.test(s)) return s.replace(".", ",");
+    var sign = "";
+    if (s.charAt(0) === "-") { sign = "-"; s = s.slice(1); }
+    var parts = s.split(".");
+    var int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return sign + int + (parts.length > 1 ? "," + parts[1] : "");
+  }
+
+  /* ---------- Cálculo exacto ---------- */
+  function calc(a, b, op) {
+    var r;
+    if (op === "+") r = a.plus(b);
+    else if (op === "-") r = a.minus(b);
+    else if (op === "*") r = a.times(b);
+    else if (op === "/") {
+      if (b.isZero()) throw new Error("No se puede dividir por cero.");
+      r = a.div(b);
+    } else {
+      if (a.isZero() && b.isNegative()) throw new Error("No se puede dividir por cero.");
+      r = a.pow(b);
+    }
+    if (r.isNaN()) throw new Error("El resultado no es un número válido.");
+    if (!r.isFinite()) throw new Error("El número es demasiado grande.");
+    return r;
+  }
+
+  /* ---------- Teclas ---------- */
+  function startNumber() {
+    if (state.justEq) { state.expr = ""; state.justEq = false; }
+    if (state.overwrite) { state.cur = "0"; state.overwrite = false; state.fresh = false; }
+  }
+
+  function digit(d) {
+    startNumber();
+    if (state.cur === "0") { state.cur = d; return; }
+    if (digitCount(state.cur) < MAX_DIGITS) state.cur += d;
+  }
+
+  function dot() {
+    startNumber();
+    if (state.cur.indexOf(".") === -1 && state.cur.indexOf("e") === -1) state.cur += ".";
+  }
+
+  function operator(o) {
+    if (state.op && state.fresh) {
+      state.op = o;
+      state.expr = pretty(state.prev.toString()) + " " + SYMBOLS[o];
+      return;
+    }
+    var left = D(state.cur);
+    if (state.op) {
+      try { left = calc(state.prev, left, state.op); }
+      catch (e) { fail(e.message); return; }
+    }
+    state.prev = left;
+    state.cur = left.toString();
+    state.op = o;
+    state.fresh = true;
+    state.overwrite = true;
+    state.justEq = false;
+    state.expr = pretty(state.cur) + " " + SYMBOLS[o];
+  }
+
+  function equals() {
+    if (!state.op) return;
+    var a = state.prev;
+    var op = state.op;
+    var b = D(state.cur);
+    var r;
+    try { r = calc(a, b, op); }
+    catch (e) { fail(e.message); return; }
+    state.expr = pretty(a.toString()) + " " + SYMBOLS[op] + " " + pretty(b.toString()) + " =";
+    entries.unshift({ a: a.toString(), o: op, b: b.toString(), r: r.toString() });
+    if (entries.length > MAX_HISTORY) entries.length = MAX_HISTORY;
+    save();
+    state.cur = r.toString();
+    state.prev = null;
+    state.op = null;
+    state.fresh = false;
+    state.overwrite = true;
+    state.justEq = true;
+  }
+
+  function percent() {
+    var v = D(state.cur);
+    var r;
+    if (state.op && state.prev && (state.op === "+" || state.op === "-")) r = state.prev.times(v).div(100);
+    else r = v.div(100);
+    state.cur = r.toString();
+    state.fresh = false;
+    state.overwrite = true;
+  }
+
+  function backspace() {
+    if (state.overwrite) return;
+    state.cur = state.cur.slice(0, -1);
+    if (state.cur === "" || state.cur === "-") state.cur = "0";
+  }
+
+  function negate() {
+    if (D(state.cur).isZero()) return;
+    state.cur = state.cur.charAt(0) === "-" ? state.cur.slice(1) : "-" + state.cur;
+    state.fresh = false;
+  }
+
+  /* ---------- Memoria ---------- */
+  function memClear() { mem = D(0); memSet = false; save(); }
+  function memRecall() {
+    if (!memSet) return;
+    state.cur = mem.toString();
+    state.fresh = false;
+    state.overwrite = true;
+    if (!state.op) { state.expr = ""; state.justEq = false; }
+  }
+  function memAdd(sign) {
+    var v = D(state.cur);
+    mem = sign > 0 ? mem.plus(v) : mem.minus(v);
+    memSet = true;
+    state.overwrite = true;
+    save();
+  }
+
+  function press(k) {
+    if (state.err) {
+      reset();
+      if (!/^[0-9.]$/.test(k)) { render(); return; }
+    }
+    if (/^[0-9]$/.test(k)) digit(k);
+    else if (k === ".") dot();
+    else if (isOp(k)) operator(k);
+    else if (k === "=") equals();
+    else if (k === "C") reset();
+    else if (k === "B") backspace();
+    else if (k === "N") negate();
+    else if (k === "%") percent();
+    else if (k === "MC") memClear();
+    else if (k === "MR") memRecall();
+    else if (k === "M+") memAdd(1);
+    else if (k === "M-") memAdd(-1);
+    render();
+  }
+
+  /* ---------- Pantalla ---------- */
+  function renderHistory() {
+    histList.textContent = "";
+    histEmpty.hidden = entries.length > 0;
+    btnClearHist.hidden = entries.length === 0;
+    entries.forEach(function (h, i) {
+      var li = document.createElement("li");
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "h-item";
+      btn.setAttribute("data-i", String(i));
+      var e = document.createElement("span");
+      e.className = "h-expr";
+      e.textContent = pretty(h.a) + " " + SYMBOLS[h.o] + " " + pretty(h.b) + " =";
+      var r = document.createElement("span");
+      r.className = "h-res";
+      r.textContent = pretty(h.r);
+      btn.appendChild(e);
+      btn.appendChild(r);
+      li.appendChild(btn);
+      histList.appendChild(li);
+    });
+  }
+
+  function render() {
+    var shown = state.err ? "Error" : pretty(state.cur);
+    valueEl.textContent = shown;
+    var n = shown.length;
+    valueEl.className = "value" + (n > 18 ? " xs" : n > 15 ? " s" : n > 11 ? " m" : "");
+    exprEl.textContent = state.err || state.expr || " ";
+    exprEl.className = "expr" + (state.err ? " is-err" : "");
+    memFlag.hidden = !memSet;
+    memFlag.title = memSet ? "Memoria: " + pretty(mem.toString()) : "";
+    var ops = pad.querySelectorAll(".op");
+    for (var i = 0; i < ops.length; i++) {
+      var on = state.fresh && state.op === ops[i].getAttribute("data-k");
+      ops[i].classList.toggle("is-active", on);
+      ops[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (historyOpen) renderHistory();
+  }
+
+  function setHistory(open) {
+    historyOpen = open;
+    historyEl.hidden = !open;
+    padMain.inert = open;
+    btnHist.setAttribute("aria-expanded", open ? "true" : "false");
+    btnHist.textContent = open ? "Teclado" : "Historial";
+    if (open) renderHistory();
+  }
+
+  function applyStyle() {
+    calcEl.setAttribute("data-style", styleName);
+    var name = styleName === "ios" ? "iPhone" : "Android";
+    btnStyle.textContent = "Estilo " + name;
+    btnStyle.setAttribute("aria-label", "Cambiar estilo. Ahora: " + name);
+  }
+
+  function applyCompact() {
+    calcEl.classList.toggle("compact", compact);
+    btnCompact.setAttribute("aria-pressed", compact ? "true" : "false");
+  }
+
+  /* ---------- Eventos ---------- */
+  pad.addEventListener("click", function (e) {
+    var item = e.target.closest(".h-item");
+    if (item) {
+      var h = entries[parseInt(item.getAttribute("data-i"), 10)];
+      if (!h) return;
+      if (state.err) reset();
+      state.cur = h.r;
+      state.fresh = false;
+      state.overwrite = true;
+      if (!state.op) { state.expr = ""; state.justEq = false; }
+      setHistory(false);
+      render();
+      return;
+    }
+    var btn = e.target.closest("button[data-k]");
+    if (btn) press(btn.getAttribute("data-k"));
+  });
+
+  btnHist.addEventListener("click", function () { setHistory(!historyOpen); });
+  btnClearHist.addEventListener("click", function () {
+    entries = [];
+    save();
+    renderHistory();
+  });
+  btnStyle.addEventListener("click", function () {
+    styleName = styleName === "ios" ? "android" : "ios";
+    applyStyle();
+    save();
+  });
+  btnCompact.addEventListener("click", function () {
+    compact = !compact;
+    applyCompact();
+    save();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key;
+    if (k === "Escape" && historyOpen) { e.preventDefault(); setHistory(false); render(); return; }
+    if (k === "Enter" && e.target && e.target.closest && e.target.closest(".bar, .history")) return;
+    var map = { ",": ".", "x": "*", "X": "*", "Enter": "=", "Backspace": "B", "Escape": "C", "Delete": "C", "c": "C", "C": "C" };
+    if (Object.prototype.hasOwnProperty.call(map, k)) k = map[k];
+    var valid = /^[0-9]$/.test(k) || k === "." || k === "=" || k === "B" || k === "C" || k === "%" || isOp(k);
+    if (!valid) return;
+    e.preventDefault();
+    press(k);
+  });
+
+  /* ---------- Arranque ---------- */
+  var saved = load();
+  entries = cleanEntries(saved.hist);
+  if (isNum(saved.mem)) { mem = D(saved.mem); memSet = true; }
+  var isApple = false;
+  try { isApple = /iPhone|iPad|iPod/.test(navigator.userAgent); } catch (e) { isApple = false; }
+  styleName = saved.style === "ios" || saved.style === "android" ? saved.style : (isApple ? "ios" : "android");
+  if (typeof saved.compact === "boolean") compact = saved.compact;
+  else {
+    try { compact = window.matchMedia("(max-height: 740px)").matches; } catch (e) { compact = false; }
+  }
+  applyStyle();
+  applyCompact();
+  setHistory(false);
+  render();
+})();
+</script>
+
+</body></html>
